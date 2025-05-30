@@ -1,7 +1,7 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
 
-namespace ZuvoPetApiAWS.Helpers
+namespace ZuvoPetApiGatewayAWS.Helpers
 {
     public class HelperCriptography
     {

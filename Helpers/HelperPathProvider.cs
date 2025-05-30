@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Hosting.Server;
 
-namespace ZuvoPetApiAWS.Helpers
+namespace ZuvoPetApiGatewayAWS.Helpers
 {
     public enum Folders { Cubos, Images }
     public class HelperPathProvider

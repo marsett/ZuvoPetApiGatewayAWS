@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
-namespace ZuvoPetApiAWS.Helpers
+namespace ZuvoPetApiGatewayAWS.Helpers
 {
     public class HelperActionServicesOAuth
     {

@@ -1,13 +1,13 @@
-﻿using Azure.Storage.Blobs;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using ZuvoPetApiAWS.Helpers;
+using Azure.Storage.Blobs;
+using ZuvoPetApiGatewayAWS.Helpers;
 using ZuvoPetApiAWS.Repositories;
-using ZuvoPetApiAWS.Services;
-using ZuvoPetNuget.Dtos;
-using ZuvoPetNuget.Models;
+using ZuvoPetApiGatewayAWS.Services;
+using ZuvoPetNugetAWS.Dtos;
+using ZuvoPetNugetAWS.Models;
 
 namespace ZuvoPetApiAWS.Controllers
 {
@@ -18,13 +18,11 @@ namespace ZuvoPetApiAWS.Controllers
     {
         private IRepositoryZuvoPet repo;
         private HelperUsuarioToken helper;
-        private ServiceStorageBlobs storageService;
         public ServiceStorageS3 service;
-        public AdoptanteController(IRepositoryZuvoPet repo, HelperUsuarioToken helper, ServiceStorageBlobs storageService, ServiceStorageS3 service)
+        public AdoptanteController(IRepositoryZuvoPet repo, HelperUsuarioToken helper, ServiceStorageS3 service)
         {
             this.repo = repo;
             this.helper = helper;
-            this.storageService = storageService;
             this.service = service;
         }
 
@@ -38,33 +36,35 @@ namespace ZuvoPetApiAWS.Controllers
                     return BadRequest(new { mensaje = "No se ha proporcionado ningún archivo" });
                 }
 
-                // Validar tipo de archivo
+                // Validate file type
                 string extension = Path.GetExtension(archivo.FileName).ToLowerInvariant();
                 if (extension != ".jpg" && extension != ".jpeg" && extension != ".png")
                 {
                     return BadRequest(new { mensaje = "Solo se permiten archivos JPG, JPEG o PNG" });
                 }
 
-                // Generar un nuevo nombre único para el archivo
-                string blobName = $"{Guid.NewGuid()}{extension}";
-                string containerName = "zuvopetimagenes";
+                // Generate unique filename
+                string fileName = $"{Guid.NewGuid()}{extension}";
 
-                // Procesar y subir archivo
+                // Upload to S3
                 using (Stream stream = archivo.OpenReadStream())
                 {
-                    //await this.storageService.UploadBlobAsync(containerName, blobName, stream);
-                    await this.service.UploadFileAsync(archivo.FileName, stream);
+                    bool uploaded = await this.service.UploadFileAsync(fileName, stream);
+                    if (!uploaded)
+                    {
+                        return StatusCode(500, new { mensaje = "Error al subir la imagen a S3" });
+                    }
                 }
 
-                // Obtener la URL del nuevo blob
-                BlobContainerClient containerClient = this.storageService.client.GetBlobContainerClient(containerName);
-                BlobClient blobClient = containerClient.GetBlobClient(blobName);
+                // Construct the S3 URL (you may need to adjust this)
+                string bucketName = "bucket-zuvopet";
+                string s3BucketUrl = $"https://{bucketName}.s3.amazonaws.com/{fileName}";
 
                 return Ok(new
                 {
                     mensaje = "Imagen subida correctamente",
-                    fotoUrl = blobClient.Uri.AbsoluteUri,
-                    nombreFoto = blobName
+                    fotoUrl = s3BucketUrl,
+                    nombreFoto = fileName
                 });
             }
             catch (Exception ex)
@@ -72,6 +72,7 @@ namespace ZuvoPetApiAWS.Controllers
                 return StatusCode(500, new { mensaje = "Error al subir la imagen: " + ex.Message });
             }
         }
+
 
         [HttpPost("PostFotoPerfil")]
         public async Task<IActionResult> PostFotoPerfil(IFormFile archivo)
@@ -104,13 +105,22 @@ namespace ZuvoPetApiAWS.Controllers
 
                 // Generar un nuevo nombre único para el archivo
                 string newFotoName = $"{Guid.NewGuid()}{extension}";
-                string containerName = "zuvopetimagenes";
 
                 // Procesar y subir archivo
                 using (Stream stream = archivo.OpenReadStream())
                 {
-                    // Actualizar el blob, eliminando el anterior
-                    await this.storageService.UpdateBlobAsync(containerName, oldFotoName, newFotoName, stream);
+                    // Subir nuevo archivo a S3
+                    bool uploaded = await this.service.UploadFileAsync(newFotoName, stream);
+                    if (!uploaded)
+                    {
+                        return StatusCode(500, new { mensaje = "Error al subir la imagen a S3" });
+                    }
+                }
+
+                // Eliminar archivo anterior de S3 si existe
+                if (!string.IsNullOrEmpty(oldFotoName))
+                {
+                    await this.service.DeleteFileAsync(oldFotoName);
                 }
 
                 // Actualizar la referencia en la base de datos
@@ -121,14 +131,14 @@ namespace ZuvoPetApiAWS.Controllers
                     return StatusCode(500, new { mensaje = "Error al actualizar la referencia en la base de datos" });
                 }
 
-                // Obtener la URL del nuevo blob
-                BlobContainerClient containerClient = this.storageService.client.GetBlobContainerClient(containerName);
-                BlobClient blobClient = containerClient.GetBlobClient(newFotoName);
+                // Construir la URL de S3
+                string bucketName = "bucket-zuvopet"; // Asegúrate de que coincide con tu bucket real
+                string s3BucketUrl = $"https://{bucketName}.s3.amazonaws.com/{newFotoName}";
 
                 return Ok(new
                 {
                     mensaje = "Foto de perfil actualizada correctamente",
-                    fotoUrl = blobClient.Uri.AbsoluteUri,
+                    fotoUrl = s3BucketUrl,
                     nombreFoto = newFotoName
                 });
             }
@@ -137,6 +147,7 @@ namespace ZuvoPetApiAWS.Controllers
                 return StatusCode(500, new { mensaje = "Error al actualizar la foto de perfil: " + ex.Message });
             }
         }
+
 
         [HttpGet("ObtenerFotoPerfilUrl")]
         public async Task<IActionResult> ObtenerFotoPerfilUrl()
@@ -149,14 +160,12 @@ namespace ZuvoPetApiAWS.Controllers
 
                 if (adoptante != null && !string.IsNullOrEmpty(adoptante.Usuario.PerfilUsuario.FotoPerfil))
                 {
-                    // No devuelves solo el nombre, sino la URL completa
-                    string containerName = "zuvopetimagenes";
-                    BlobContainerClient containerClient =
-                        this.storageService.client.GetBlobContainerClient(containerName);
-                    BlobClient blobClient = containerClient.GetBlobClient(adoptante.Usuario.PerfilUsuario.FotoPerfil);
+                    // Construir la URL de S3 usando el nombre del archivo
+                    string bucketName = "bucket-zuvopet"; // Asegúrate de que coincide con tu bucket real
+                    string s3BucketUrl = $"https://{bucketName}.s3.amazonaws.com/{adoptante.Usuario.PerfilUsuario.FotoPerfil}";
 
-                    // Devolver la URL directa del blob
-                    return Ok(blobClient.Uri.AbsoluteUri);
+                    // Devolver la URL directa de S3
+                    return Ok(s3BucketUrl);
                 }
 
                 return Ok(string.Empty);
@@ -167,40 +176,36 @@ namespace ZuvoPetApiAWS.Controllers
             }
         }
 
+
         [HttpGet("imagen/{nombreImagen}")]
         public async Task<IActionResult> GetImagen(string nombreImagen)
         {
             try
             {
-                // Obtener el cliente del contenedor
-                string containerName = "zuvopetimagenes";
-                BlobContainerClient containerClient =
-                    this.storageService.client.GetBlobContainerClient(containerName);
+                // Download the file from S3
+                var fileData = await this.service.DownloadFileAsync(nombreImagen);
 
-                // Obtener el cliente del blob
-                BlobClient blobClient = containerClient.GetBlobClient(nombreImagen);
-
-                // Verificar si el blob existe
-                if (!await blobClient.ExistsAsync())
+                if (fileData == null)
                 {
                     return NotFound($"Imagen {nombreImagen} no encontrada");
                 }
 
-                // Descargar el blob
-                var response = await blobClient.DownloadAsync();
-                Stream stream = response.Value.Content;
+                // Determine the MIME type based on the file extension
+                // If S3 returns a content type, use it; otherwise use our GetContentType method
+                string contentType = !string.IsNullOrEmpty(fileData.Value.ContentType)
+                    ? fileData.Value.ContentType
+                    : GetContentType(nombreImagen);
 
-                // Determinar el tipo MIME según la extensión del archivo
-                string contentType = GetContentType(nombreImagen);
-
-                // Devolver la imagen con el tipo MIME apropiado
-                return File(stream, contentType);
+                // Return the file with the appropriate MIME type
+                return File(fileData.Value.Stream, contentType);
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { mensaje = "Error al recuperar la imagen: " + ex.Message });
             }
         }
+
+
 
         private string GetContentType(string fileName)
         {

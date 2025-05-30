@@ -1,8 +1,8 @@
 ﻿using System.Drawing;
 using System.Drawing.Imaging;
-using ZuvoPetApiAWS.Services;
+using ZuvoPetApiGatewayAWS.Services;
 
-namespace ZuvoPetApiAWS.Helpers
+namespace ZuvoPetApiGatewayAWS.Helpers
 {
     public class HelperAvatarDinamico
     {

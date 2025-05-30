@@ -10,13 +10,21 @@
       "Properties": {
         "Handler": "ZuvoPetApiGatewayAWS::ZuvoPetApiGatewayAWS.LambdaEntryPoint::FunctionHandlerAsync",
         "Runtime": "dotnet8",
-        "CodeUri": "",
-        "MemorySize": 512,
-        "Timeout": 30,
+        "CodeUri": "./bin/Release/net8.0/linux-x64/publish",
+        "MemorySize": 1024,
+        "Timeout": 60,
         "Role": null,
         "Policies": [
-          "AWSLambda_FullAccess"
+          "AWSLambdaBasicExecutionRole",
+          "AmazonS3FullAccess",
+          "AmazonRDSDataFullAccess",
+          "SecretsManagerReadWrite"
         ],
+        "Environment": {
+          "Variables": {
+            "ASPNETCORE_ENVIRONMENT": "Production"
+          }
+        },
         "Events": {
           "ProxyResource": {
             "Type": "Api",
@@ -33,6 +41,18 @@
             }
           }
         }
+      }
+    },
+    "ApiGatewayApi": {
+      "Type": "AWS::Serverless::Api",
+      "Properties": {
+        "StageName": "Prod",
+        "BinaryMediaTypes": [
+          "image/jpeg",
+          "image/png",
+          "application/octet-stream",
+          "multipart/form-data"
+        ]
       }
     }
   },

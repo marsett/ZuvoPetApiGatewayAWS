@@ -2,7 +2,7 @@
 using Amazon.S3.Model;
 using System.Net;
 
-namespace ZuvoPetApiAWS.Services
+namespace ZuvoPetApiGatewayAWS.Services
 {
     public class ServiceStorageS3
     {
@@ -53,5 +53,35 @@ namespace ZuvoPetApiAWS.Services
             }
         }
 
+        // Add new method to download files from S3
+        public async Task<(Stream Stream, string ContentType)?> DownloadFileAsync(string fileName)
+        {
+            try
+            {
+                var request = new GetObjectRequest
+                {
+                    BucketName = this.BucketName,
+                    Key = fileName
+                };
+
+                var response = await this.ClientS3.GetObjectAsync(request);
+
+                return (response.ResponseStream, response.Headers.ContentType);
+            }
+            catch (AmazonS3Exception ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+            {
+                // File not found
+                return null;
+            }
+        }
+
+        // Add method to get S3 URL for a file
+        public string GetFileUrl(string fileName)
+        {
+            if (string.IsNullOrEmpty(fileName))
+                return string.Empty;
+
+            return $"https://{this.BucketName}.s3.amazonaws.com/{fileName}";
+        }
     }
 }

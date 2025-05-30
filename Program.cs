@@ -1,51 +1,32 @@
 using Microsoft.EntityFrameworkCore;
 using ZuvoPetApiAWS.Repositories;
-using ZuvoPetApiAWS.Data;
+using ZuvoPetApiGatewayAWS.Data;
 using System.Text.Json.Serialization;
-using Scalar.AspNetCore;
-using ZuvoPetApiAWS.Helpers;
-using Azure.Storage.Blobs;
-using ZuvoPetApiAWS.Services;
-using Microsoft.Extensions.Azure;
-using Azure.Security.KeyVault.Secrets;
+using Scalar.AspNetCore;  // Remove the duplicate below
+using ZuvoPetApiGatewayAWS.Helpers;
+using ZuvoPetApiGatewayAWS.Services;
 using Amazon.S3;
 using Newtonsoft.Json;
-using ZuvoPetNuget.Models;
+using ZuvoPetNugetAWS.Models;
+// using Scalar.AspNetCore;  // This is a duplicate
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddAzureClients(factory =>
-{
-    factory.AddSecretClient
-    (builder.Configuration.GetSection("KeyVault"));
-});
+// Remove Azure Key Vault registration and usage
 
-SecretClient secretClient = builder.Services.BuildServiceProvider().GetRequiredService<SecretClient>();
-
+// Get all secrets from AWS
 string miSecreto = await HelperSecretsManager.GetSecretAsync();
 KeysModel model = JsonConvert.DeserializeObject<KeysModel>(miSecreto);
 
-//KeyVaultSecret secretConnectionString = await secretClient.GetSecretAsync("SqlZuvoPet");
-//string secretConnectionString = builder.Configuration.GetConnectionString("MySql");
+// Use AWS secrets
 string secretConnectionString = model.MySql;
-
-KeyVaultSecret secretStorageAccount = await secretClient.GetSecretAsync("StorageAccount");
-
-//KeyVaultSecret secretAudience = await secretClient.GetSecretAsync("Audience");
 string secretAudience = model.Audience;
-//KeyVaultSecret secretIssuer = await secretClient.GetSecretAsync("Issuer");
 string secretIssuer = model.Issuer;
-//KeyVaultSecret secretSecretKey = await secretClient.GetSecretAsync("SecretKey");
 string secretSecretKey = model.SecretKey;
-
-//KeyVaultSecret secretIterate = await secretClient.GetSecretAsync("Iterate");
 string secretIterate = model.Iterate;
-//KeyVaultSecret secretKey = await secretClient.GetSecretAsync("Key");
 string secretKey = model.Key;
-//KeyVaultSecret secretSalt = await secretClient.GetSecretAsync("Salt");
 string secretSalt = model.Salt;
-
-
+string bucketName = model.BucketName; // If you need it
 
 HelperCriptography.Initialize(
     secretSalt,
@@ -60,21 +41,18 @@ HelperActionServicesOAuth helper = new HelperActionServicesOAuth(
     secretSecretKey
 );
 builder.Services.AddSingleton<HelperActionServicesOAuth>(helper);
-builder.Services.AddSingleton<ServiceStorageBlobs>();
 builder.Services.AddScoped<HelperUsuarioToken>();
 builder.Services.AddAuthentication(helper.GetAuthenticateSchema())
     .AddJwtBearer(helper.GetJwtBearerOptions());
-// Add services to the container.
 
 builder.Services.AddAWSService<IAmazonS3>();
-builder.Services.AddTransient<ServiceStorageS3>();
+builder.Services.AddSingleton<ServiceStorageS3>();
 
-string azureKeys = secretStorageAccount.Value;
-BlobServiceClient blobServiceClient = new BlobServiceClient(azureKeys);
-builder.Services.AddTransient<BlobServiceClient>(x => blobServiceClient);
 
-string connectionString =
-    secretConnectionString;
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+string connectionString = secretConnectionString;
 builder.Services.AddTransient<IRepositoryZuvoPet, RepositoryZuvoPet>();
 builder.Services.AddDbContext<ZuvoPetContext>
     (options => options.UseMySQL(connectionString));
@@ -85,29 +63,26 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.WriteIndented = true;
     });
 
-
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
-
 var app = builder.Build();
 
-
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    
-}
-app.MapOpenApi();
+// The order of middleware is important
 app.UseHttpsRedirection();
 
-app.MapScalarApiReference();
+// Enable Swagger in all environments
+app.UseSwagger();
+app.UseSwaggerUI();
+
+// Authentication should come before authorization
+app.UseAuthentication();
 app.UseAuthorization();
 
+// Map controllers before Scalar
 app.MapControllers();
+app.MapScalarApiReference();
 
+// This should be at the end
 app.MapGet("/", context => {
-    context.Response.Redirect("/scalar/v1");
+    context.Response.Redirect("/swagger");
     return Task.CompletedTask;
 });
 

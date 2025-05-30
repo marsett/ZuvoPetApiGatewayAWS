@@ -2,10 +2,10 @@
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 using System.Security.Claims;
-using ZuvoPetApiAWS.Data;
-using ZuvoPetApiAWS.Helpers;
-using ZuvoPetNuget.Models;
-
+using ZuvoPetApiGatewayAWS.Data;
+using ZuvoPetApiGatewayAWS.Helpers;
+using ZuvoPetApiGatewayAWS.Data;
+using ZuvoPetNugetAWS.Models;
 namespace ZuvoPetApiAWS.Repositories
 {
     public class RepositoryZuvoPet : IRepositoryZuvoPet

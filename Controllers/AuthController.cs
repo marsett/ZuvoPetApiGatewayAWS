@@ -5,12 +5,13 @@ using Newtonsoft.Json;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using ZuvoPetApiAWS.Helpers;
+using ZuvoPetApiGatewayAWS.Helpers;
 using ZuvoPetApiAWS.Repositories;
-using ZuvoPetNuget.Models;
-using ZuvoPetNuget.Dtos;
-using ZuvoPetApiAWS.Services;
-using Azure.Storage.Blobs;
+using ZuvoPetNugetAWS.Models;
+using ZuvoPetNugetAWS.Dtos;
+using ZuvoPetApiGatewayAWS.Services;
+using Amazon.S3;
+using Amazon.S3.Model;
 
 namespace ZuvoPetApiAWS.Controllers
 {
@@ -20,12 +21,13 @@ namespace ZuvoPetApiAWS.Controllers
     {
         private IRepositoryZuvoPet repo;
         private HelperActionServicesOAuth helper;
-        private ServiceStorageBlobs storageService;
-        public AuthController(IRepositoryZuvoPet repo, HelperActionServicesOAuth helper, ServiceStorageBlobs storageService)
+        private ServiceStorageS3 service;
+
+        public AuthController(IRepositoryZuvoPet repo, HelperActionServicesOAuth helper, ServiceStorageS3 service)
         {
             this.repo = repo;
             this.helper = helper;
-            this.storageService = storageService;
+            this.service = service;
         }
 
         [HttpGet("imagen/{nombreImagen}")]
@@ -33,29 +35,38 @@ namespace ZuvoPetApiAWS.Controllers
         {
             try
             {
-                // Obtener el cliente del contenedor
-                string containerName = "zuvopetimagenes";
-                BlobContainerClient containerClient =
-                    this.storageService.client.GetBlobContainerClient(containerName);
+                // Get S3 client from DI container since ServiceStorageS3 might not expose it
+                var s3Client = HttpContext.RequestServices.GetRequiredService<IAmazonS3>();
+                string bucketName = "bucket-zuvopet"; // Make sure this matches your bucket
 
-                // Obtener el cliente del blob
-                BlobClient blobClient = containerClient.GetBlobClient(nombreImagen);
-
-                // Verificar si el blob existe
-                if (!await blobClient.ExistsAsync())
+                // Create a request to get the object
+                var request = new GetObjectRequest
                 {
+                    BucketName = bucketName,
+                    Key = nombreImagen
+                };
+
+                try
+                {
+                    // Get the object from S3
+                    var response = await s3Client.GetObjectAsync(request);
+
+                    // Get the stream containing the object data
+                    Stream stream = response.ResponseStream;
+
+                    // Determine the MIME type based on the file extension
+                    string contentType = !string.IsNullOrEmpty(response.Headers.ContentType)
+                        ? response.Headers.ContentType
+                        : GetContentType(nombreImagen);
+
+                    // Return the file with the appropriate MIME type
+                    return File(stream, contentType);
+                }
+                catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    // Object does not exist
                     return NotFound($"Imagen {nombreImagen} no encontrada");
                 }
-
-                // Descargar el blob
-                var response = await blobClient.DownloadAsync();
-                Stream stream = response.Value.Content;
-
-                // Determinar el tipo MIME según la extensión del archivo
-                string contentType = GetContentType(nombreImagen);
-
-                // Devolver la imagen con el tipo MIME apropiado
-                return File(stream, contentType);
             }
             catch (Exception ex)
             {
@@ -118,7 +129,6 @@ namespace ZuvoPetApiAWS.Controllers
             }
             else
             {
-
                 // Obtener la foto de perfil del usuario
                 string fotoPerfil = await this.repo.GetFotoPerfilAsync(usuario.Id);
 
@@ -162,10 +172,6 @@ namespace ZuvoPetApiAWS.Controllers
                 return Ok(new
                 {
                     response = new JwtSecurityTokenHandler().WriteToken(token)
-                    //response = new JwtSecurityTokenHandler().WriteToken(token),
-                    //tipoUsuario = usuario.TipoUsuario,
-                    //nombreUsuario = usuario.NombreUsuario,
-                    //fotoPerfil = fotoPerfil
                 });
             }
         }
@@ -200,9 +206,6 @@ namespace ZuvoPetApiAWS.Controllers
 
             try
             {
-                // Iniciar transacción (si tu repositorio lo soporta)
-                // Usar un using o mecanismo similar dependiendo de cómo implementes la transaccionalidad
-
                 // Registrar el usuario
                 int? userId = await this.repo.RegisterUserAsync(
                     modelo.NombreUsuario,
@@ -215,13 +218,8 @@ namespace ZuvoPetApiAWS.Controllers
                     return BadRequest(new { mensaje = "No se pudo crear el usuario" });
                 }
 
-                // Crear perfil con avatar
-                //string nombreAvatar = HelperAvatarDinamico.CrearYGuardarAvatar(modelo.NombreUsuario);
-                // Aquí está el cambio: Crear perfil con avatar en Azure Blob Storage
-                string nombreAvatar = await HelperAvatarDinamico.CrearYGuardarAvatarEnAzureAsync(
-                    modelo.NombreUsuario,
-                    this.storageService,
-                    "zuvopetimagenes");
+                // Crear perfil con avatar usando AWS S3
+                string nombreAvatar = await CrearYGuardarAvatarEnS3Async(modelo.NombreUsuario);
                 await this.repo.RegisterPerfilUserAsync(userId.Value, nombreAvatar);
 
                 // Procesar información adicional según el tipo de usuario
@@ -267,8 +265,6 @@ namespace ZuvoPetApiAWS.Controllers
                         longitud);
                 }
 
-                // Si usaste una transacción, confirmarla aquí
-
                 return Ok(new
                 {
                     mensaje = "Usuario registrado correctamente",
@@ -278,10 +274,31 @@ namespace ZuvoPetApiAWS.Controllers
             }
             catch (Exception ex)
             {
-                // Si usaste una transacción, revertirla aquí
-
                 return StatusCode(500, new { mensaje = "Error al completar el registro: " + ex.Message });
             }
+        }
+
+        // Helper method to create avatar and save to S3
+        private async Task<string> CrearYGuardarAvatarEnS3Async(string nombreUsuario)
+        {
+            // Get initials and generate avatar using existing helper methods
+            string iniciales = HelperAvatarDinamico.GetIniciales(nombreUsuario);
+            byte[] imagenAvatar = HelperAvatarDinamico.GenerarAvatar(iniciales);
+
+            // Generate unique filename
+            string nombreAvatar = $"{Guid.NewGuid()}.png";
+
+            // Upload to S3
+            using (MemoryStream stream = new MemoryStream(imagenAvatar))
+            {
+                bool uploaded = await this.service.UploadFileAsync(nombreAvatar, stream);
+                if (!uploaded)
+                {
+                    throw new Exception("Error al subir el avatar a S3");
+                }
+            }
+
+            return nombreAvatar;
         }
     }
 }

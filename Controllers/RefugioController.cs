@@ -1,11 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using ZuvoPetApiAWS.Helpers;
+using ZuvoPetApiGatewayAWS.Helpers;
 using ZuvoPetApiAWS.Repositories;
-using ZuvoPetNuget.Models;
-using ZuvoPetNuget.Dtos;
-using ZuvoPetApiAWS.Services;
+using ZuvoPetNugetAWS.Models;
+using ZuvoPetNugetAWS.Dtos;
+using ZuvoPetApiGatewayAWS.Services;
 using Azure.Storage.Blobs;
 using System.Security.Claims;
 

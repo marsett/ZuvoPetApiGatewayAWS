@@ -1,4 +1,4 @@
-﻿using ZuvoPetNuget.Models;
+﻿using ZuvoPetNugetAWS.Models;
 
 namespace ZuvoPetApiAWS.Repositories
 {

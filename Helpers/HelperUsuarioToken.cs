@@ -1,8 +1,8 @@
 ﻿using Newtonsoft.Json;
 using System.Security.Claims;
-using ZuvoPetNuget.Dtos;
+using ZuvoPetNugetAWS.Dtos;
 
-namespace ZuvoPetApiAWS.Helpers
+namespace ZuvoPetApiGatewayAWS.Helpers
 {
     public class HelperUsuarioToken
     {

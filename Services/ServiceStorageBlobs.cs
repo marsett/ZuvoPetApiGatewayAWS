@@ -1,8 +1,8 @@
 ﻿using Azure.Storage.Blobs.Models;
 using Azure.Storage.Blobs;
-using ZuvoPetNuget.Models;
+using ZuvoPetNugetAWS.Models;
 
-namespace ZuvoPetApiAWS.Services
+namespace ZuvoPetApiGatewayAWS.Services
 {
     public class ServiceStorageBlobs
     {

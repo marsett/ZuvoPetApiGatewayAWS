@@ -3,7 +3,7 @@ using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 using System.Drawing;
 
-namespace ZuvoPetApiAWS.Helpers
+namespace ZuvoPetApiGatewayAWS.Helpers
 {
     public class HelperSecretsManager
     {
