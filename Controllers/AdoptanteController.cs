@@ -178,32 +178,32 @@ namespace ZuvoPetApiAWS.Controllers
 
 
         [HttpGet("imagen/{nombreImagen}")]
-        public async Task<IActionResult> GetImagen(string nombreImagen)
+public async Task<IActionResult> GetImagen(string nombreImagen)
+{
+    try
+    {
+        // Download the file from S3
+        var fileData = await this.service.DownloadFileAsync(nombreImagen);
+        
+        if (fileData == null)
         {
-            try
-            {
-                // Download the file from S3
-                var fileData = await this.service.DownloadFileAsync(nombreImagen);
-
-                if (fileData == null)
-                {
-                    return NotFound($"Imagen {nombreImagen} no encontrada");
-                }
-
-                // Determine the MIME type based on the file extension
-                // If S3 returns a content type, use it; otherwise use our GetContentType method
-                string contentType = !string.IsNullOrEmpty(fileData.Value.ContentType)
-                    ? fileData.Value.ContentType
-                    : GetContentType(nombreImagen);
-
-                // Return the file with the appropriate MIME type
-                return File(fileData.Value.Stream, contentType);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { mensaje = "Error al recuperar la imagen: " + ex.Message });
-            }
+            return NotFound($"Imagen {nombreImagen} no encontrada");
         }
+        
+        // Determine the MIME type based on the file extension
+        // If S3 returns a content type, use it; otherwise use our GetContentType method
+        string contentType = !string.IsNullOrEmpty(fileData.Value.ContentType) 
+            ? fileData.Value.ContentType 
+            : GetContentType(nombreImagen);
+        
+        // Return the file with the appropriate MIME type
+        return File(fileData.Value.Stream, contentType);
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, new { mensaje = "Error al recuperar la imagen: " + ex.Message });
+    }
+}
 
 
 
