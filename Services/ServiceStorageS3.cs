@@ -15,26 +15,54 @@ namespace ZuvoPetApiGatewayAWS.Services
                 ("AWS:BucketName");
             this.ClientS3 = clientS3;
         }
-        public async Task<bool> UploadFileAsync
-        (string fileName, Stream stream)
+        public async Task<bool> UploadFileAsync(string fileName, Stream stream)
         {
-            PutObjectRequest request = new PutObjectRequest
+            try
             {
-                Key = fileName,
-                BucketName = this.BucketName,
-                InputStream = stream
-            };
+                // Asegúrate de que el stream esté en posición 0
+                if (stream.CanSeek)
+                    stream.Position = 0;
 
-            PutObjectResponse response = await
-                this.ClientS3.PutObjectAsync(request);
-            if (response.HttpStatusCode == HttpStatusCode.OK)
-            {
-                return true;
+                string contentType = GetContentType(fileName);
+
+                // CAMBIO IMPORTANTE: Copia el stream a un MemoryStream
+                using (var memoryStream = new MemoryStream())
+                {
+                    await stream.CopyToAsync(memoryStream);
+                    memoryStream.Position = 0; // Reset position
+
+                    PutObjectRequest request = new PutObjectRequest
+                    {
+                        Key = fileName,
+                        BucketName = this.BucketName,
+                        InputStream = memoryStream,
+                        ContentType = contentType,
+                    };
+
+                    PutObjectResponse response = await this.ClientS3.PutObjectAsync(request);
+                    return response.HttpStatusCode == HttpStatusCode.OK;
+                }
             }
-            else
+            catch (Exception ex)
             {
+                Console.WriteLine($"Error uploading file: {ex.Message}");
                 return false;
             }
+        }
+
+        private string GetContentType(string fileName)
+        {
+            string extension = Path.GetExtension(fileName).ToLowerInvariant();
+            return extension switch
+            {
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                ".gif" => "image/gif",
+                ".bmp" => "image/bmp",
+                ".webp" => "image/webp",
+                ".svg" => "image/svg+xml",
+                _ => "application/octet-stream"
+            };
         }
 
         public async Task<bool> DeleteFileAsync

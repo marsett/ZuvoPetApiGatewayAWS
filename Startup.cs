@@ -99,12 +99,24 @@ public class Startup
             services.AddTransient<IRepositoryZuvoPet, RepositoryZuvoPet>();
             services.AddDbContext<ZuvoPetContext>(options => options.UseMySQL(secretConnectionString));
 
+            // En ConfigureServices en Startup.cs
             services.AddControllers()
                 .AddJsonOptions(options =>
                 {
                     options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
                     options.JsonSerializerOptions.WriteIndented = true;
+
+                    // Estas configuraciones son necesarias para que se serialicen propiedades de solo lectura
+                    options.JsonSerializerOptions.IncludeFields = true;
+                    options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never;
+
+                    // Esta configuración es crítica para propiedades de solo lectura/calculadas
+                    options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+
+                    // AÑADIR ESTA LÍNEA para tratar propiedades calculadas correctamente
+                    options.JsonSerializerOptions.IgnoreReadOnlyProperties = false;
                 });
+
 
             // CORS para API Gateway
             services.AddCors(options =>
@@ -151,7 +163,7 @@ public class Startup
                     {
                         new Microsoft.OpenApi.Models.OpenApiServer
                         {
-                            Url = $"{httpReq.Scheme}://{httpReq.Host.Value}/Prod"
+                            Url = $"{httpReq.Scheme}://{httpReq.Host.Value}"
                         }
                     };
                 });

@@ -6,6 +6,8 @@ using ZuvoPetApiGatewayAWS.Data;
 using ZuvoPetApiGatewayAWS.Helpers;
 using ZuvoPetApiGatewayAWS.Data;
 using ZuvoPetNugetAWS.Models;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations;
 namespace ZuvoPetApiAWS.Repositories
 {
     public class RepositoryZuvoPet : IRepositoryZuvoPet
@@ -451,13 +453,16 @@ namespace ZuvoPetApiAWS.Repositories
 
         public async Task<VistaPerfilAdoptante> GetPerfilAdoptante(int idusuario)
         {
-            string sql = "CALL SP_PERFILADOPTANTE(@p_idusuario)"; 
+            string sql = "CALL SP_PERFILADOPTANTE(@p_idusuario)";
             var pamIdUsuario = new MySql.Data.MySqlClient.MySqlParameter("@p_idusuario", idusuario);
             var consulta = this.context.VistaPerfilAdoptante
-                .FromSqlRaw(sql, pamIdUsuario).AsEnumerable();
-
+                .FromSqlRaw(sql, pamIdUsuario)
+                .AsEnumerable();
             return consulta.FirstOrDefault();
         }
+
+
+
 
         public async Task<VistaPerfilRefugio> GetPerfilRefugio(int idusuario)
         {

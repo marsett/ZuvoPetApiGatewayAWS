@@ -11,6 +11,7 @@ namespace ZuvoPetApiGatewayAWS.Data
         public DbSet<Usuario> Usuarios { get; set; }
         public DbSet<PerfilUsuario> PerfilUsuario { get; set; }
         public DbSet<VistaPerfilAdoptante> VistaPerfilAdoptante { get; set; }
+
         public DbSet<VistaPerfilRefugio> VistaPerfilRefugio { get; set; }
 
         // 📌 Adoptantes y Refugios
