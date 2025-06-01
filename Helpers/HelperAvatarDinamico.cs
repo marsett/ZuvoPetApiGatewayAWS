@@ -1,4 +1,9 @@
-﻿using SkiaSharp;
+﻿using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Drawing.Processing;
+using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.Fonts;
 using ZuvoPetApiGatewayAWS.Services;
 
 namespace ZuvoPetApiGatewayAWS.Helpers
@@ -21,38 +26,67 @@ namespace ZuvoPetApiGatewayAWS.Helpers
         {
             int ancho = 150, alto = 150;
 
-            using var surface = SKSurface.Create(new SKImageInfo(ancho, alto));
-            var canvas = surface.Canvas;
+            using var image = new Image<Rgba32>(ancho, alto);
 
-            // Limpiar el canvas con color de fondo
             var colorFondo = GenerarColorAleatorio();
-            canvas.Clear(new SKColor(colorFondo.R, colorFondo.G, colorFondo.B));
+            var backgroundColor = SixLabors.ImageSharp.Color.FromRgb(colorFondo.R, colorFondo.G, colorFondo.B);
 
-            // Configurar la fuente y el texto
-            using var paint = new SKPaint
+            image.Mutate(ctx =>
             {
-                Color = SKColors.White,
-                TextSize = 50,
-                IsAntialias = true,
-                Typeface = SKTypeface.FromFamilyName("Arial", SKFontStyle.Bold),
-                TextAlign = SKTextAlign.Center
-            };
+                // Llenar el fondo con el color generado
+                ctx.Fill(backgroundColor);
 
-            // Calcular la posición del texto (centrado)
-            var textBounds = new SKRect();
-            paint.MeasureText(iniciales, ref textBounds);
+                // Crear fuente
+                var font = GetFont(50);
 
-            float x = ancho / 2f;
-            float y = (alto / 2f) - textBounds.MidY;
+                // Configurar opciones de texto
+                var textOptions = new RichTextOptions(font)
+                {
+                    Origin = new SixLabors.ImageSharp.PointF(ancho / 2f, alto / 2f),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
 
-            // Dibujar el texto
-            canvas.DrawText(iniciales, x, y, paint);
+                // Dibujar el texto en blanco
+                ctx.DrawText(textOptions, iniciales, SixLabors.ImageSharp.Color.White);
+            });
 
-            // Convertir a imagen y obtener bytes
-            using var image = surface.Snapshot();
-            using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+            using var ms = new MemoryStream();
+            image.SaveAsPng(ms);
+            return ms.ToArray();
+        }
 
-            return data.ToArray();
+        private static SixLabors.Fonts.Font GetFont(float size)
+        {
+            try
+            {
+                // Intentar usar una fuente del sistema
+                var fontCollection = new SixLabors.Fonts.FontCollection();
+
+                // Fuentes comunes en sistemas Linux/AWS
+                string[] fontPaths = {
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                    "/usr/share/fonts/TTF/arial.ttf",
+                    "/System/Library/Fonts/Helvetica.ttc"
+                };
+
+                foreach (var fontPath in fontPaths)
+                {
+                    if (File.Exists(fontPath))
+                    {
+                        var fontFamily = fontCollection.Add(fontPath);
+                        return fontFamily.CreateFont(size, SixLabors.Fonts.FontStyle.Bold);
+                    }
+                }
+
+                // Si no encuentra fuentes del sistema, usar la fuente por defecto
+                return SystemFonts.CreateFont("Arial", size, SixLabors.Fonts.FontStyle.Bold);
+            }
+            catch
+            {
+                // Fallback a fuente por defecto del sistema
+                return SystemFonts.CreateFont(SystemFonts.Families.First().Name, size, SixLabors.Fonts.FontStyle.Bold);
+            }
         }
 
         public static (byte R, byte G, byte B) GenerarColorAleatorio()
@@ -60,24 +94,18 @@ namespace ZuvoPetApiGatewayAWS.Helpers
             Random rand = new Random();
             while (true)
             {
-                // Generar un color aleatorio
                 byte r = (byte)rand.Next(100, 256);
                 byte g = (byte)rand.Next(100, 256);
                 byte b = (byte)rand.Next(100, 256);
 
-                // Calcular la luminosidad perceptual
                 double luminosidad = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-
-                // Calcular el contraste con el texto blanco (#FFFFFF)
                 double contrasteBlanco = Math.Abs(1.0 - luminosidad);
 
-                // Asegurar que el color sea suficientemente brillante pero no excesivamente claro
                 if (luminosidad >= 0.5 && luminosidad <= 0.8 && contrasteBlanco >= 0.5)
                     return (r, g, b);
             }
         }
 
-        // Modificar este método para usar Azure Blob Storage
         public static async Task<string> CrearYGuardarAvatarEnAzureAsync(string nombreUsuario, ServiceStorageBlobs storageService, string containerName = "zuvopetimagenes")
         {
             string iniciales = GetIniciales(nombreUsuario);
