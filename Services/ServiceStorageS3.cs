@@ -15,26 +15,36 @@ namespace ZuvoPetApiGatewayAWS.Services
                 ("AWS:BucketName");
             this.ClientS3 = clientS3;
         }
-        public async Task<bool> UploadFileAsync
-        (string fileName, Stream stream)
+        public async Task<bool> UploadFileAsync(string fileName, Stream stream)
         {
+            // Determinar el MIME type basado en la extensión
+            string contentType = GetContentType(fileName);
+
             PutObjectRequest request = new PutObjectRequest
             {
                 Key = fileName,
                 BucketName = this.BucketName,
-                InputStream = stream
+                InputStream = stream,
+                ContentType = contentType // Añadir el Content-Type
             };
 
-            PutObjectResponse response = await
-                this.ClientS3.PutObjectAsync(request);
-            if (response.HttpStatusCode == HttpStatusCode.OK)
+            PutObjectResponse response = await this.ClientS3.PutObjectAsync(request);
+            return response.HttpStatusCode == HttpStatusCode.OK;
+        }
+
+        private string GetContentType(string fileName)
+        {
+            string extension = Path.GetExtension(fileName).ToLowerInvariant();
+            return extension switch
             {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                ".gif" => "image/gif",
+                ".bmp" => "image/bmp",
+                ".webp" => "image/webp",
+                ".svg" => "image/svg+xml",
+                _ => "application/octet-stream"
+            };
         }
 
         public async Task<bool> DeleteFileAsync
