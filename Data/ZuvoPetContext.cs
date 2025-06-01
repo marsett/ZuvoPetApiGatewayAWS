@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using ZuvoPetNugetAWS.Models;
 
 namespace ZuvoPetApiGatewayAWS.Data
@@ -36,6 +37,16 @@ namespace ZuvoPetApiGatewayAWS.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Ignore<List<string>>();
+            modelBuilder.Entity<Adoptante>()
+        .Property(e => e.RecursosDisponibles)
+        .HasConversion(
+            // Especificar opciones explícitamente
+            list => list == null || list.Count == 0 ? "[]" : JsonSerializer.Serialize(list, (JsonSerializerOptions)null),
+            // Especificar opciones explícitamente
+            json => string.IsNullOrEmpty(json) || json == "[]" ? new List<string>() : JsonSerializer.Deserialize<List<string>>(json, (JsonSerializerOptions)null) ?? new List<string>()
+        )
+        .HasColumnType("TEXT");
+
             base.OnModelCreating(modelBuilder);
         }
     }

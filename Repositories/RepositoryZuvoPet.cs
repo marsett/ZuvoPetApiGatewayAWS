@@ -376,6 +376,7 @@ namespace ZuvoPetApiAWS.Repositories
 
         public async Task RegisterAdoptanteAsync(int idusuario, string nombre, string tipoVivienda, bool tieneJardin, bool otrosAnimales, List<string> recursosDisponibles, string tiempoEnCasa)
         {
+            var listaRecursos = new List<string> { "Compromiso emocional" };
             Adoptante adoptante = new Adoptante
             {
                 Id = await GetMaxIdAsync(this.context.Adoptantes),
@@ -384,7 +385,7 @@ namespace ZuvoPetApiAWS.Repositories
                 TipoVivienda = tipoVivienda,
                 TieneJardin = tieneJardin,
                 OtrosAnimales = otrosAnimales,
-                RecursosDisponibles = recursosDisponibles,
+                RecursosDisponibles = listaRecursos,
                 TiempoEnCasa = tiempoEnCasa
             };
 
