@@ -17,37 +17,19 @@ namespace ZuvoPetApiGatewayAWS.Services
         }
         public async Task<bool> UploadFileAsync(string fileName, Stream stream)
         {
-            try
+            // Determinar el MIME type basado en la extensión
+            string contentType = GetContentType(fileName);
+
+            PutObjectRequest request = new PutObjectRequest
             {
-                // Asegúrate de que el stream esté en posición 0
-                if (stream.CanSeek)
-                    stream.Position = 0;
+                Key = fileName,
+                BucketName = this.BucketName,
+                InputStream = stream,
+                ContentType = contentType // Añadir el Content-Type
+            };
 
-                string contentType = GetContentType(fileName);
-
-                // CAMBIO IMPORTANTE: Copia el stream a un MemoryStream
-                using (var memoryStream = new MemoryStream())
-                {
-                    await stream.CopyToAsync(memoryStream);
-                    memoryStream.Position = 0; // Reset position
-
-                    PutObjectRequest request = new PutObjectRequest
-                    {
-                        Key = fileName,
-                        BucketName = this.BucketName,
-                        InputStream = memoryStream,
-                        ContentType = contentType,
-                    };
-
-                    PutObjectResponse response = await this.ClientS3.PutObjectAsync(request);
-                    return response.HttpStatusCode == HttpStatusCode.OK;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error uploading file: {ex.Message}");
-                return false;
-            }
+            PutObjectResponse response = await this.ClientS3.PutObjectAsync(request);
+            return response.HttpStatusCode == HttpStatusCode.OK;
         }
 
         private string GetContentType(string fileName)
