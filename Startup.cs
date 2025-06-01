@@ -163,7 +163,7 @@ public class Startup
                     {
                         new Microsoft.OpenApi.Models.OpenApiServer
                         {
-                            Url = $"{httpReq.Scheme}://{httpReq.Host.Value}"
+                            Url = $"{httpReq.Scheme}://{httpReq.Host.Value}/Prod"
                         }
                     };
                 });
