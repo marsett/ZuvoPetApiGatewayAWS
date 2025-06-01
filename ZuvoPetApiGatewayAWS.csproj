@@ -12,6 +12,9 @@
     <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
   <ItemGroup>
+  <None Update="Resources/Fonts/MarvelRegular-Dj83.TTF">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+   </None>
     <PackageReference Include="Amazon.Lambda.AspNetCoreServer" Version="9.0.2" />
     <PackageReference Include="AWSSDK.Core" Version="4.0.0.6" />
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.1" />
