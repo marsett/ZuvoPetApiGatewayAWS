@@ -4,6 +4,15 @@
   "Description": "An AWS Serverless Application that uses the ASP.NET Core framework running in Amazon Lambda.",
   "Parameters": {},
   "Conditions": {},
+  "Globals": {
+    "Api": {
+      "BinaryMediaTypes": [
+        "multipart/form-data",
+        "image/*",
+        "application/octet-stream"
+      ]
+    }
+  },
   "Resources": {
     "AspNetCoreFunction": {
       "Type": "AWS::Serverless::Function",
