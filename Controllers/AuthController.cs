@@ -281,14 +281,10 @@ namespace ZuvoPetApiAWS.Controllers
         // Helper method to create avatar and save to S3
         private async Task<string> CrearYGuardarAvatarEnS3Async(string nombreUsuario)
         {
-            // Get initials and generate avatar using existing helper methods
             string iniciales = HelperAvatarDinamico.GetIniciales(nombreUsuario);
             byte[] imagenAvatar = HelperAvatarDinamico.GenerarAvatar(iniciales);
 
-            // Generate unique filename
             string nombreAvatar = $"{Guid.NewGuid()}.png";
-
-            // Upload to S3
             using (MemoryStream stream = new MemoryStream(imagenAvatar))
             {
                 bool uploaded = await this.service.UploadFileAsync(nombreAvatar, stream);
@@ -297,8 +293,10 @@ namespace ZuvoPetApiAWS.Controllers
                     throw new Exception("Error al subir el avatar a S3");
                 }
             }
-
             return nombreAvatar;
         }
+
+
+
     }
 }

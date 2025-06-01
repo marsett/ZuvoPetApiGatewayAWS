@@ -1,5 +1,4 @@
-﻿using System.Drawing;
-using System.Drawing.Imaging;
+﻿using SkiaSharp;
 using ZuvoPetApiGatewayAWS.Services;
 
 namespace ZuvoPetApiGatewayAWS.Helpers
@@ -10,14 +9,11 @@ namespace ZuvoPetApiGatewayAWS.Helpers
         {
             string[] palabras = nombre.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             string iniciales = "";
-
             foreach (var palabra in palabras)
             {
                 iniciales += char.ToUpper(palabra[0]);
-
                 if (iniciales.Length == 2) break;
             }
-
             return iniciales;
         }
 
@@ -25,50 +21,59 @@ namespace ZuvoPetApiGatewayAWS.Helpers
         {
             int ancho = 150, alto = 150;
 
-            Bitmap bitmap = new Bitmap(ancho, alto);
+            using var surface = SKSurface.Create(new SKImageInfo(ancho, alto));
+            var canvas = surface.Canvas;
 
-            using (Graphics g = Graphics.FromImage(bitmap))
+            // Limpiar el canvas con color de fondo
+            var colorFondo = GenerarColorAleatorio();
+            canvas.Clear(new SKColor(colorFondo.R, colorFondo.G, colorFondo.B));
+
+            // Configurar la fuente y el texto
+            using var paint = new SKPaint
             {
-                Color color = GenerarColorAleatorio();
+                Color = SKColors.White,
+                TextSize = 50,
+                IsAntialias = true,
+                Typeface = SKTypeface.FromFamilyName("Arial", SKFontStyle.Bold),
+                TextAlign = SKTextAlign.Center
+            };
 
-                g.Clear(color);
+            // Calcular la posición del texto (centrado)
+            var textBounds = new SKRect();
+            paint.MeasureText(iniciales, ref textBounds);
 
-                Font fuente = new Font("Arial", 50, FontStyle.Bold);
+            float x = ancho / 2f;
+            float y = (alto / 2f) - textBounds.MidY;
 
-                Brush textoBlanco = Brushes.White;
+            // Dibujar el texto
+            canvas.DrawText(iniciales, x, y, paint);
 
-                SizeF tamano = g.MeasureString(iniciales, fuente);
+            // Convertir a imagen y obtener bytes
+            using var image = surface.Snapshot();
+            using var data = image.Encode(SKEncodedImageFormat.Png, 100);
 
-                float x = (ancho - tamano.Width) / 2;
-                float y = (alto - tamano.Height) / 2;
-
-                g.DrawString(iniciales, fuente, textoBlanco, x, y);
-            }
-
-            using MemoryStream ms = new MemoryStream();
-
-            bitmap.Save(ms, ImageFormat.Png);
-
-            return ms.ToArray();
+            return data.ToArray();
         }
 
-        public static Color GenerarColorAleatorio()
+        public static (byte R, byte G, byte B) GenerarColorAleatorio()
         {
             Random rand = new Random();
             while (true)
             {
                 // Generar un color aleatorio
-                Color color = Color.FromArgb(rand.Next(100, 256), rand.Next(100, 256), rand.Next(100, 256));
+                byte r = (byte)rand.Next(100, 256);
+                byte g = (byte)rand.Next(100, 256);
+                byte b = (byte)rand.Next(100, 256);
 
                 // Calcular la luminosidad perceptual
-                double luminosidad = (0.299 * color.R + 0.587 * color.G + 0.114 * color.B) / 255;
+                double luminosidad = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 
                 // Calcular el contraste con el texto blanco (#FFFFFF)
                 double contrasteBlanco = Math.Abs(1.0 - luminosidad);
 
                 // Asegurar que el color sea suficientemente brillante pero no excesivamente claro
                 if (luminosidad >= 0.5 && luminosidad <= 0.8 && contrasteBlanco >= 0.5)
-                    return color;
+                    return (r, g, b);
             }
         }
 
@@ -77,7 +82,6 @@ namespace ZuvoPetApiGatewayAWS.Helpers
         {
             string iniciales = GetIniciales(nombreUsuario);
             byte[] imagenAvatar = GenerarAvatar(iniciales);
-
             string nombreAvatar = $"{Guid.NewGuid()}.png";
 
             using (MemoryStream stream = new MemoryStream(imagenAvatar))
