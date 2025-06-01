@@ -451,8 +451,8 @@ namespace ZuvoPetApiAWS.Repositories
 
         public async Task<VistaPerfilAdoptante> GetPerfilAdoptante(int idusuario)
         {
-            string sql = "EXEC SP_PERFILADOPTANTE @idusuario";
-            SqlParameter pamIdUsuario = new SqlParameter("@idusuario", idusuario);
+            string sql = "CALL SP_PERFILADOPTANTE(@p_idusuario)"; 
+            var pamIdUsuario = new MySql.Data.MySqlClient.MySqlParameter("@p_idusuario", idusuario);
             var consulta = this.context.VistaPerfilAdoptante
                 .FromSqlRaw(sql, pamIdUsuario).AsEnumerable();
 
@@ -461,13 +461,14 @@ namespace ZuvoPetApiAWS.Repositories
 
         public async Task<VistaPerfilRefugio> GetPerfilRefugio(int idusuario)
         {
-            string sql = "EXEC SP_PERFILREFUGIO @idusuario";
-            SqlParameter pamIdUsuario = new SqlParameter("@idusuario", idusuario);
+            string sql = "CALL SP_PERFILREFUGIO(@p_idusuario)";
+            var pamIdUsuario = new MySql.Data.MySqlClient.MySqlParameter("@p_idusuario", idusuario);
             var consulta = this.context.VistaPerfilRefugio
                 .FromSqlRaw(sql, pamIdUsuario).AsEnumerable();
 
             return consulta.FirstOrDefault();
         }
+
 
         public async Task<bool> EsFavorito(int idusuario, int idmascota)
         {
@@ -517,23 +518,27 @@ namespace ZuvoPetApiAWS.Repositories
         {
             Console.WriteLine("IDUSUARIO", idusuario);
             var adoptante = await this.context.Adoptantes
-            .FirstOrDefaultAsync(a => a.IdUsuario == idusuario);
+                .FirstOrDefaultAsync(a => a.IdUsuario == idusuario);
             Console.WriteLine("IDA", adoptante.Id);
-            string sql = "EXEC SP_OBTENERMASCOTASFAVORITAS @idadoptante";
-            SqlParameter pamAdoptante = new SqlParameter("@idadoptante", adoptante.Id);
+
+            string sql = "CALL SP_OBTENERMASCOTASFAVORITAS(@p_idadoptante)";
+            var pamAdoptante = new MySql.Data.MySqlClient.MySqlParameter("@p_idadoptante", adoptante.Id);
+
             List<MascotaCard> favoritas = await this.context.MascotasFavoritas
                 .FromSqlRaw(sql, pamAdoptante)
                 .ToListAsync();
+
             return favoritas;
         }
+
 
         public async Task<List<MascotaAdoptada>> ObtenerMascotasAdoptadas(int idusuario)
         {
             var adoptante = await this.context.Adoptantes
                 .FirstOrDefaultAsync(a => a.IdUsuario == idusuario);
 
-            string sql = "EXEC SP_OBTENERMASCOTASADOPTADAS @idadoptante";
-            SqlParameter pamAdoptante = new SqlParameter("@idadoptante", adoptante.Id);
+            string sql = "CALL SP_OBTENERMASCOTASADOPTADAS(@p_idadoptante)";
+            var pamAdoptante = new MySql.Data.MySqlClient.MySqlParameter("@p_idadoptante", adoptante.Id);
 
             List<MascotaAdoptada> adoptadas = await this.context.MascotasAdoptadas
                 .FromSqlRaw(sql, pamAdoptante)
@@ -541,6 +546,7 @@ namespace ZuvoPetApiAWS.Repositories
 
             return adoptadas;
         }
+
 
         public async Task<DateTime?> ObtenerUltimaAccionFavorito(int idusuario, int idmascota)
         {
