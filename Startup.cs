@@ -163,7 +163,7 @@ public class Startup
                     {
                         new Microsoft.OpenApi.Models.OpenApiServer
                         {
-                            Url = $"{httpReq.Scheme}://{httpReq.Host.Value}"
+                            Url = $"{httpReq.Scheme}://{httpReq.Host.Value}/Prod"
                         }
                     };
                 });
@@ -171,7 +171,7 @@ public class Startup
 
             app.UseSwaggerUI(c =>
             {
-                c.SwaggerEndpoint("/swagger/v1/swagger.json", "ZuvoPet API v1");
+                c.SwaggerEndpoint("/Prod/swagger/v1/swagger.json", "ZuvoPet API v1");
                 c.RoutePrefix = "swagger";
                 c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None);
                 c.DefaultModelsExpandDepth(-1);
